@@ -55,6 +55,9 @@ def run_read_tool(name: str, args: dict) -> list[dict]:
     elif name == "find_expiring_secrets":
         rows = graph_client.find_expiring_secrets(args.get("days", 30))
         _print_table(rows, "App registration secrets/certs expiring soon")
+    elif name == "find_risky_consents":
+        rows = graph_client.find_risky_consents()
+        _print_table(rows, "OAuth consent grants (app access risk)")
     else:
         rows = [{"error": f"unknown read tool {name}"}]
     audit("read", {"tool": name, "args": args, "result_count": len(rows)})
@@ -131,5 +134,6 @@ def handle_turn(messages: list[dict]) -> list[dict]:
                 "content": json.dumps(result)[:6000],
             })
         messages.append({"role": "user", "content": tool_results})
+
 
 

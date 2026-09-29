@@ -154,3 +154,46 @@ def find_expiring_secrets(days: int = 30) -> list[dict]:
                 })
     out.sort(key=lambda x: x["days_left"])
     return out
+
+
+_HIGH_RISK_SCOPES = {
+    "Mail.Read", "Mail.ReadWrite", "Mail.Send",
+    "Files.Read.All", "Files.ReadWrite.All",
+    "Directory.Read.All", "Directory.ReadWrite.All",
+    "User.Read.All", "User.ReadWrite.All",
+    "Group.ReadWrite.All", "Sites.ReadWrite.All",
+    "Application.ReadWrite.All", "RoleManagement.ReadWrite.Directory",
+    "offline_access",
+}
+
+
+def _sp_name_map() -> dict:
+    """Map service principal object id -> display name, to label consent grants readably."""
+    sps = _get_all("/servicePrincipals", {"$select": "id,appId,displayName", "$top": "999"})
+    return {sp["id"]: sp.get("displayName", sp["id"]) for sp in sps}
+
+
+def find_risky_consents() -> list[dict]:
+    """Audit OAuth delegated permission grants (the illicit-consent attack surface).
+    Flags apps holding high-risk scopes and whether consent is tenant-wide (admin) or per-user.
+    Free-tier compatible. Requires Directory.Read.All (already granted)."""
+    names = _sp_name_map()
+    grants = _get_all("/oauth2PermissionGrants", {})
+    out = []
+    for g in grants:
+        scopes = (g.get("scope") or "").split()
+        risky = [s for s in scopes if s in _HIGH_RISK_SCOPES]
+        tenant_wide = g.get("consentType") == "AllPrincipals"
+        if risky:
+            level = "HIGH" if tenant_wide else "medium"
+        else:
+            level = "info"
+        out.append({
+            "app": names.get(g.get("clientId"), g.get("clientId")),
+            "consent": "tenant-wide (admin)" if tenant_wide else "single user",
+            "risky_scopes": ", ".join(risky) if risky else "-",
+            "risk": level,
+        })
+    order = {"HIGH": 0, "medium": 1, "info": 2}
+    out.sort(key=lambda x: order.get(x["risk"], 3))
+    return out

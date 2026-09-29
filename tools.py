@@ -63,6 +63,19 @@ TOOLS = [
         "write": False,
     },
     {
+        "name": "find_risky_consents",
+        "description": "Audit OAuth delegated permission grants across the tenant (the illicit-"
+                       "consent attack surface). Lists which apps hold which scopes, whether consent "
+                       "is tenant-wide (admin) or per-user, and flags high-risk scopes such as "
+                       "Mail.Read, Files.ReadWrite.All, Directory access. Use to answer 'what apps "
+                       "can access our data' or to review app consent risk. Read-only.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+        "write": False,
+    },
+    {
         "name": "disable_account",
         "description": "Disable a user account by UPN. This is a WRITE action and requires "
                        "human approval before it executes.",
