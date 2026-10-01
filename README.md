@@ -18,6 +18,7 @@ auditability, and separation of the read/detection path from the write/execution
 | Privileged role holders | read | Who holds Global Admin, Priv Role Admin, etc. |
 | Expiring app secrets | read | App registration secrets/certificates expired or expiring |
 | OAuth consent risk | read | Apps holding high-risk scopes (illicit-consent attack surface) |
+| Application permissions | read | App-only (app-role) access apps hold directly, high-risk flagged |
 | Disable account | **write (gated)** | Proposal -> human approval -> PowerShell execution -> audit |
 
 ## Design principles
@@ -53,4 +54,5 @@ architecture is unchanged by that upgrade — only one Graph query differs.
 ## Security
 
 See [SECURITY.md](SECURITY.md) for how secrets and permissions are handled.
+
 

@@ -76,6 +76,19 @@ TOOLS = [
         "write": False,
     },
     {
+        "name": "find_app_permissions",
+        "description": "Audit APPLICATION permissions (app-role assignments) held by service "
+                       "principals - app-only, tenant-wide access granted to apps with no user "
+                       "involved. These are the most powerful app grants (e.g. Mail.Read or "
+                       "Directory.ReadWrite.All as the app itself). Complements find_risky_consents "
+                       "(which covers delegated grants). Flags high-risk permissions. Read-only.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+        "write": False,
+    },
+    {
         "name": "disable_account",
         "description": "Disable a user account by UPN. This is a WRITE action and requires "
                        "human approval before it executes.",

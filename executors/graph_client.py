@@ -197,3 +197,40 @@ def find_risky_consents() -> list[dict]:
     order = {"HIGH": 0, "medium": 1, "info": 2}
     out.sort(key=lambda x: order.get(x["risk"], 3))
     return out
+
+
+def find_app_permissions() -> list[dict]:
+    """Audit APPLICATION permissions (app-role assignments) held by service principals -
+    app-only, tenant-wide access with no user involved (the most powerful app grants).
+    Resolves app-role IDs to readable names. Free-tier compatible. Requires Directory.Read.All."""
+    high_risk = {
+        "Mail.Read", "Mail.ReadWrite", "Mail.Send",
+        "Files.Read.All", "Files.ReadWrite.All",
+        "Directory.Read.All", "Directory.ReadWrite.All",
+        "User.Read.All", "User.ReadWrite.All",
+        "Group.Read.All", "Group.ReadWrite.All",
+        "Application.ReadWrite.All", "RoleManagement.ReadWrite.Directory",
+        "Sites.ReadWrite.All", "AppRoleAssignment.ReadWrite.All",
+    }
+    sps = _get_all("/servicePrincipals", {
+        "$select": "id,displayName,appRoles",
+        "$expand": "appRoleAssignments",
+        "$top": "999",
+    })
+    role_names: dict[str, str] = {}
+    for sp in sps:
+        for r in sp.get("appRoles", []) or []:
+            role_names[r.get("id")] = r.get("value") or r.get("displayName") or r.get("id")
+
+    out = []
+    for sp in sps:
+        for a in sp.get("appRoleAssignments", []) or []:
+            perm = role_names.get(a.get("appRoleId"), a.get("appRoleId") or "(unknown)")
+            out.append({
+                "app": sp.get("displayName") or sp.get("id"),
+                "permission": perm,
+                "resource": a.get("resourceDisplayName", "-"),
+                "risk": "HIGH" if perm in high_risk else "info",
+            })
+    out.sort(key=lambda x: 0 if x["risk"] == "HIGH" else 1)
+    return out
