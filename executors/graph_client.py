@@ -234,3 +234,25 @@ def find_app_permissions() -> list[dict]:
             })
     out.sort(key=lambda x: 0 if x["risk"] == "HIGH" else 1)
     return out
+
+
+def run_all_checks() -> dict:
+    """Run every detection and return a consolidated risk summary.
+    Each detection is isolated so one failure doesn't sink the whole report."""
+    checks = {
+        "stale_accounts": lambda: find_stale_accounts(90),
+        "stale_guests": lambda: find_stale_guests(90),
+        "privileged_roles": find_privileged_roles,
+        "expiring_secrets": lambda: find_expiring_secrets(60),
+        "risky_consents": find_risky_consents,
+        "app_permissions": find_app_permissions,
+    }
+    report = {}
+    for name, fn in checks.items():
+        try:
+            rows = fn()
+            high = sum(1 for r in rows if str(r.get("risk", "")).upper() == "HIGH")
+            report[name] = {"count": len(rows), "high": high, "rows": rows, "error": None}
+        except Exception as e:
+            report[name] = {"count": 0, "high": 0, "rows": [], "error": str(e)}
+    return report

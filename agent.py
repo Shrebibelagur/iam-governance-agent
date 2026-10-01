@@ -41,7 +41,36 @@ def _print_table(rows: list[dict], title: str):
         console.print(f"[dim]â€¦and {len(rows) - 50} more[/dim]")
 
 
-def run_read_tool(name: str, args: dict) -> list[dict]:
+def _run_all_checks_display():
+    """Run every detection, print a consolidated summary plus HIGH-risk detail, and return
+    a compact result for the LLM to narrate."""
+    report = graph_client.run_all_checks()
+    summary = []
+    for check, data in report.items():
+        status = "ERROR" if data["error"] else ("review" if data["high"] else "ok")
+        summary.append({
+            "check": check,
+            "findings": data["count"],
+            "high_risk": data["high"],
+            "status": status,
+        })
+    _print_table(summary, "Identity risk summary - all checks")
+    for check, data in report.items():
+        highs = [r for r in data["rows"] if str(r.get("risk", "")).upper() == "HIGH"]
+        if highs:
+            _print_table(highs, f"HIGH findings - {check}")
+    total_high = sum(d["high"] for d in report.values())
+    audit("read", {"tool": "run_all_checks", "args": {},
+                   "result_count": sum(d["count"] for d in report.values()),
+                   "high": total_high})
+    compact = {c: {"findings": d["count"], "high": d["high"], "error": d["error"]}
+               for c, d in report.items()}
+    return {"summary": compact, "total_high": total_high}
+
+
+def run_read_tool(name: str, args: dict):
+    if name == "run_all_checks":
+        return _run_all_checks_display()
     days = args.get("days", config.STALE_DAYS_DEFAULT)
     if name == "find_stale_accounts":
         rows = graph_client.find_stale_accounts(days)
@@ -137,6 +166,7 @@ def handle_turn(messages: list[dict]) -> list[dict]:
                 "content": json.dumps(result)[:6000],
             })
         messages.append({"role": "user", "content": tool_results})
+
 
 
 

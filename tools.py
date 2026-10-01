@@ -89,6 +89,18 @@ TOOLS = [
         "write": False,
     },
     {
+        "name": "run_all_checks",
+        "description": "Run EVERY detection at once and return a consolidated identity-risk "
+                       "summary: stale accounts, stale guests, privileged roles, expiring secrets, "
+                       "OAuth consent risk, and application permissions. Use when the user wants a "
+                       "full posture review, a risk assessment, or 'run all checks'. Read-only.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+        "write": False,
+    },
+    {
         "name": "disable_account",
         "description": "Disable a user account by UPN. This is a WRITE action and requires "
                        "human approval before it executes.",
