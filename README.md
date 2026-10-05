@@ -19,6 +19,8 @@ auditability, and separation of the read/detection path from the write/execution
 | Expiring app secrets | read | App registration secrets/certificates expired or expiring |
 | OAuth consent risk | read | Apps holding high-risk scopes (illicit-consent attack surface) |
 | Application permissions | read | App-only (app-role) access apps hold directly, high-risk flagged |
+| Conditional Access gaps | read | CA policies not enforcing, exclusions, missing MFA, legacy auth |
+| Ownerless objects | read | Groups and app registrations with no owner (accountability gap) |
 | Run all checks | read | Consolidated identity-risk summary across every detection |
 | Disable account | **write (gated)** | Proposal -> human approval -> PowerShell execution -> audit |
 
@@ -55,6 +57,7 @@ architecture is unchanged by that upgrade — only one Graph query differs.
 ## Security
 
 See [SECURITY.md](SECURITY.md) for how secrets and permissions are handled.
+
 
 
 

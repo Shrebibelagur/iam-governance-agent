@@ -246,6 +246,8 @@ def run_all_checks() -> dict:
         "expiring_secrets": lambda: find_expiring_secrets(60),
         "risky_consents": find_risky_consents,
         "app_permissions": find_app_permissions,
+        "ca_gaps": find_ca_gaps,
+        "ownerless_objects": find_ownerless_objects,
     }
     report = {}
     for name, fn in checks.items():
@@ -256,3 +258,113 @@ def run_all_checks() -> dict:
         except Exception as e:
             report[name] = {"count": 0, "high": 0, "rows": [], "error": str(e)}
     return report
+
+
+def find_ca_gaps() -> list[dict]:
+    """Audit Conditional Access policies for common gaps: policies not enforcing (report-only
+    or disabled), user/group exclusions (bypass holes), whether MFA is required anywhere, and
+    whether legacy auth is blocked. Reports 'no policies' as a finding. Requires Policy.Read.All."""
+    policies = _get_all("/identity/conditionalAccess/policies", {})
+    out = []
+
+    if not policies:
+        out.append({
+            "policy": "(none)",
+            "state": "-",
+            "finding": "No Conditional Access policies configured in the tenant",
+            "risk": "HIGH",
+        })
+        return out
+
+    any_mfa = False
+    any_block_legacy = False
+
+    for p in policies:
+        name = p.get("displayName", "(unnamed)")
+        state = p.get("state", "unknown")
+        grant = p.get("grantControls") or {}
+        controls = [c.lower() for c in (grant.get("builtInControls") or [])]
+        conditions = p.get("conditions") or {}
+        excl_users = (conditions.get("users") or {}).get("excludeUsers") or []
+        excl_groups = (conditions.get("users") or {}).get("excludeGroups") or []
+        client_apps = conditions.get("clientAppTypes") or []
+
+        if "mfa" in controls:
+            any_mfa = True
+        if "block" in controls and any(c in client_apps for c in ("exchangeactivesync", "other")):
+            any_block_legacy = True
+
+        if state == "disabled":
+            out.append({"policy": name, "state": state,
+                        "finding": "Policy is disabled (not protecting)", "risk": "medium"})
+        elif state == "enabledForReportingButNotEnforced":
+            out.append({"policy": name, "state": "report-only",
+                        "finding": "Report-only: logging but NOT enforcing", "risk": "HIGH"})
+
+        if excl_users or excl_groups:
+            n = len(excl_users) + len(excl_groups)
+            out.append({"policy": name, "state": state,
+                        "finding": f"Has {n} user/group exclusion(s) - possible bypass",
+                        "risk": "medium"})
+
+    if not any_mfa:
+        out.append({"policy": "(tenant)", "state": "-",
+                    "finding": "No enabled policy requires MFA", "risk": "HIGH"})
+    if not any_block_legacy:
+        out.append({"policy": "(tenant)", "state": "-",
+                    "finding": "Legacy authentication is not explicitly blocked", "risk": "medium"})
+
+    if not out:
+        out.append({"policy": "(all)", "state": "-",
+                    "finding": "No obvious gaps detected", "risk": "info"})
+
+    order = {"HIGH": 0, "medium": 1, "info": 2}
+    out.sort(key=lambda x: order.get(x["risk"], 3))
+    return out
+
+
+
+def find_ownerless_objects() -> list[dict]:
+    """Find groups and app registrations with no owner assigned - an accountability gap
+    (nobody is responsible for the object). Owners are expanded in the main query to avoid
+    one call per object. Free-tier compatible. Requires Directory.Read.All (already granted)."""
+    out = []
+
+    groups = _get_all("/groups", {
+        "$select": "id,displayName,securityEnabled",
+        "$expand": "owners($select=id)",
+        "$top": "999",
+    })
+    for g in groups:
+        if not (g.get("owners") or []):
+            out.append({
+                "type": "group",
+                "name": g.get("displayName", "(unnamed)"),
+                "detail": "security" if g.get("securityEnabled") else "other",
+                "finding": "No owner assigned",
+                "risk": "medium",
+            })
+
+    apps = _get_all("/applications", {
+        "$select": "id,displayName,appId",
+        "$expand": "owners($select=id)",
+        "$top": "999",
+    })
+    for a in apps:
+        if not (a.get("owners") or []):
+            out.append({
+                "type": "app registration",
+                "name": a.get("displayName", "(unnamed)"),
+                "detail": a.get("appId", ""),
+                "finding": "No owner assigned",
+                "risk": "HIGH",
+            })
+
+    if not out:
+        out.append({"type": "-", "name": "(all)", "detail": "",
+                    "finding": "All groups and apps have owners", "risk": "info"})
+
+    order = {"HIGH": 0, "medium": 1, "info": 2}
+    out.sort(key=lambda x: order.get(x["risk"], 3))
+    return out
+

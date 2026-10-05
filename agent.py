@@ -90,6 +90,12 @@ def run_read_tool(name: str, args: dict):
     elif name == "find_app_permissions":
         rows = graph_client.find_app_permissions()
         _print_table(rows, "Application permissions (app-only access)")
+    elif name == "find_ca_gaps":
+        rows = graph_client.find_ca_gaps()
+        _print_table(rows, "Conditional Access policy gaps")
+    elif name == "find_ownerless_objects":
+        rows = graph_client.find_ownerless_objects()
+        _print_table(rows, "Ownerless groups and app registrations")
     else:
         rows = [{"error": f"unknown read tool {name}"}]
     audit("read", {"tool": name, "args": args, "result_count": len(rows)})
@@ -166,6 +172,8 @@ def handle_turn(messages: list[dict]) -> list[dict]:
                 "content": json.dumps(result)[:6000],
             })
         messages.append({"role": "user", "content": tool_results})
+
+
 
 
 

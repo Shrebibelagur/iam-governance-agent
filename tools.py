@@ -101,6 +101,25 @@ TOOLS = [
         "write": False,
     },
     {
+        "name": "find_ca_gaps",
+        "description": "Audit Conditional Access policies for gaps: policies not enforcing "
+                       "(report-only or disabled), user/group exclusions that create bypass holes, "
+                       "whether any policy requires MFA, and whether legacy authentication is "
+                       "blocked. Reports 'no policies configured' as a finding. Use to review "
+                       "access-control policy posture. Read-only.",
+        "input_schema": {"type": "object", "properties": {}},
+        "write": False,
+    },
+    {
+        "name": "find_ownerless_objects",
+        "description": "Find groups and app registrations with no owner assigned - an "
+                       "accountability gap where nobody is responsible for the object. "
+                       "Ownerless app registrations are higher risk (unmanaged credentials). "
+                       "Use to review object ownership / orphaned objects. Read-only.",
+        "input_schema": {"type": "object", "properties": {}},
+        "write": False,
+    },
+    {
         "name": "disable_account",
         "description": "Disable a user account by UPN. This is a WRITE action and requires "
                        "human approval before it executes.",
@@ -123,3 +142,5 @@ def api_tools() -> list[dict]:
 
 
 WRITE_TOOLS = {t["name"] for t in TOOLS if t["write"]}
+
+
