@@ -129,6 +129,15 @@ TOOLS = [
         "write": False,
     },
     {
+        "name": "find_compliance_gaps",
+        "description": "Run every detection and map each finding to the compliance controls it "
+                       "supports (ISO 27001, NIST 800-53, DORA). HIGH findings mark a control as a "
+                       "GAP. Use for a compliance-gap report or when asked about ISO/NIST/DORA "
+                       "posture. Read-only.",
+        "input_schema": {"type": "object", "properties": {}},
+        "write": False,
+    },
+    {
         "name": "disable_account",
         "description": "Disable a user account by UPN. This is a WRITE action and requires "
                        "human approval before it executes.",
@@ -151,6 +160,7 @@ def api_tools() -> list[dict]:
 
 
 WRITE_TOOLS = {t["name"] for t in TOOLS if t["write"]}
+
 
 
 

@@ -22,6 +22,7 @@ auditability, and separation of the read/detection path from the write/execution
 | Conditional Access gaps | read | CA policies not enforcing, exclusions, missing MFA, legacy auth |
 | Ownerless objects | read | Groups and app registrations with no owner (accountability gap) |
 | NHI register | read | Non-human identities scored by privilege, ownership, credential hygiene |
+| Compliance gaps | read | Findings mapped to ISO 27001 / NIST 800-53 / DORA controls |
 | Run all checks | read | Consolidated identity-risk summary across every detection |
 | Disable account | **write (gated)** | Proposal -> human approval -> PowerShell execution -> audit |
 
@@ -58,6 +59,7 @@ architecture is unchanged by that upgrade — only one Graph query differs.
 ## Security
 
 See [SECURITY.md](SECURITY.md) for how secrets and permissions are handled.
+
 
 
 

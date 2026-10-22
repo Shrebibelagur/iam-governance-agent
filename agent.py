@@ -99,6 +99,9 @@ def run_read_tool(name: str, args: dict):
     elif name == "find_nhi_register":
         rows = graph_client.find_nhi_register()
         _print_table(rows, "Non-human identity (NHI) register")
+    elif name == "find_compliance_gaps":
+        rows = graph_client.find_compliance_gaps()
+        _print_table(rows, "Compliance gap report (ISO 27001 / NIST / DORA)")
     else:
         rows = [{"error": f"unknown read tool {name}"}]
     audit("read", {"tool": name, "args": args, "result_count": len(rows)})
@@ -175,6 +178,7 @@ def handle_turn(messages: list[dict]) -> list[dict]:
                 "content": json.dumps(result)[:6000],
             })
         messages.append({"role": "user", "content": tool_results})
+
 
 
 

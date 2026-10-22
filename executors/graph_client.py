@@ -458,3 +458,45 @@ def find_nhi_register() -> list[dict]:
 
 
 
+
+
+# Compliance control mappings per check. DEFENSIBLE DEFAULTS - review and adjust to your
+# own framework knowledge before relying on them in any real assessment.
+# ISO = ISO/IEC 27001:2022 Annex A; NIST = SP 800-53 Rev5; DORA = Reg (EU) 2022/2554.
+_COMPLIANCE_MAP = {
+    "stale_accounts":    ["ISO 27001 A.5.18 (access rights)", "NIST AC-2 (account mgmt)", "DORA Art.9"],
+    "stale_guests":      ["ISO 27001 A.5.18 (access rights)", "NIST AC-2 (account mgmt)"],
+    "privileged_roles":  ["ISO 27001 A.8.2 (privileged access)", "NIST AC-6 (least privilege)", "DORA Art.9"],
+    "expiring_secrets":  ["ISO 27001 A.8.24 (cryptography)", "NIST IA-5 (authenticator mgmt)"],
+    "risky_consents":    ["ISO 27001 A.5.15 (access control)", "NIST AC-6 (least privilege)", "DORA Art.9"],
+    "app_permissions":   ["ISO 27001 A.8.2 (privileged access)", "NIST AC-6 (least privilege)", "DORA Art.9"],
+    "ca_gaps":           ["ISO 27001 A.8.5 (secure authentication)", "NIST IA-2 (identification/auth)", "DORA Art.9"],
+    "ownerless_objects": ["ISO 27001 A.5.9 (inventory of assets)", "NIST CM-8 (system inventory)", "DORA Art.8"],
+    "nhi_register":      ["ISO 27001 A.5.16 (identity mgmt)", "NIST AC-2 (account mgmt)", "DORA Art.9"],
+}
+
+
+def find_compliance_gaps() -> list[dict]:
+    """Run every detection and map each to the compliance controls it supports (ISO 27001,
+    NIST 800-53, DORA). HIGH findings mark the control as a GAP. Turns the risk report into
+    a compliance-gap report. Read-only."""
+    report = run_all_checks()
+    rows = []
+    for check, controls in _COMPLIANCE_MAP.items():
+        data = report.get(check)
+        if not data:
+            continue
+        if data.get("error"):
+            status = "ERROR"
+        elif data["high"] > 0:
+            status = "GAP"
+        elif data["count"] > 0:
+            status = "review"
+        else:
+            status = "PASS"
+        for ctrl in controls:
+            rows.append({"control": ctrl, "mapped_to": check,
+                         "status": status, "high_findings": data["high"]})
+    order = {"GAP": 0, "review": 1, "ERROR": 2, "PASS": 3}
+    rows.sort(key=lambda r: order.get(r["status"], 4))
+    return rows
