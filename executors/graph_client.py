@@ -248,6 +248,7 @@ def run_all_checks() -> dict:
         "app_permissions": find_app_permissions,
         "ca_gaps": find_ca_gaps,
         "ownerless_objects": find_ownerless_objects,
+        "nhi_register": find_nhi_register,
     }
     report = {}
     for name, fn in checks.items():
@@ -367,4 +368,93 @@ def find_ownerless_objects() -> list[dict]:
     order = {"HIGH": 0, "medium": 1, "info": 2}
     out.sort(key=lambda x: order.get(x["risk"], 3))
     return out
+
+
+
+_NHI_HIGH_RISK = {
+    "Mail.Read", "Mail.ReadWrite", "Mail.Send", "Files.Read.All", "Files.ReadWrite.All",
+    "Directory.Read.All", "Directory.ReadWrite.All", "User.Read.All", "User.ReadWrite.All",
+    "Group.Read.All", "Group.ReadWrite.All", "Application.ReadWrite.All",
+    "RoleManagement.ReadWrite.Directory", "Sites.ReadWrite.All", "AppRoleAssignment.ReadWrite.All",
+}
+
+
+def find_nhi_register() -> list[dict]:
+    """Non-human identity (NHI) register: every service principal scored by privilege,
+    ownership, and credential hygiene. NHIs outnumber humans and are rarely governed.
+    Score: privileged +40, ownerless +30, expired cred +20, expiring +10.
+    Free-tier compatible. Requires Directory.Read.All / Application.Read.All (already granted)."""
+    now = datetime.now(timezone.utc)
+
+    sps = _get_all("/servicePrincipals", {
+        "$select": "id,appId,displayName,servicePrincipalType,accountEnabled,appRoles",
+        "$expand": "appRoleAssignments",
+        "$top": "999",
+    })
+    role_names: dict[str, str] = {}
+    for sp in sps:
+        for r in sp.get("appRoles", []) or []:
+            role_names[r.get("id")] = r.get("value") or r.get("displayName") or r.get("id")
+
+    apps = _get_all("/applications", {
+        "$select": "appId,passwordCredentials,keyCredentials",
+        "$expand": "owners($select=id)",
+        "$top": "999",
+    })
+    app_by_appid = {a.get("appId"): a for a in apps}
+
+    def cred_status(app):
+        if not app:
+            return "-"
+        creds = (app.get("passwordCredentials") or []) + (app.get("keyCredentials") or [])
+        worst = None
+        for c in creds:
+            end = c.get("endDateTime")
+            if not end:
+                continue
+            days = (datetime.fromisoformat(end.replace("Z", "+00:00")) - now).days
+            worst = days if worst is None else min(worst, days)
+        if worst is None:
+            return "none"
+        if worst < 0:
+            return "EXPIRED"
+        if worst <= 30:
+            return f"expiring {worst}d"
+        return "ok"
+
+    out = []
+    for sp in sps:
+        app = app_by_appid.get(sp.get("appId"))
+        if app is None:
+            continue  # first-party/external SP with no app registration in THIS tenant - not ours to govern
+        perms = [role_names.get(a.get("appRoleId"), "") for a in (sp.get("appRoleAssignments") or [])]
+        privileged = any(p in _NHI_HIGH_RISK for p in perms)
+        has_owner = bool((app or {}).get("owners") or [])
+        cred = cred_status(app)
+
+        score = 0
+        if privileged:
+            score += 40
+        if not has_owner:
+            score += 30
+        if cred == "EXPIRED":
+            score += 20
+        elif cred.startswith("expiring"):
+            score += 10
+
+        band = "HIGH" if score >= 60 else ("medium" if score >= 30 else "low")
+        out.append({
+            "nhi": sp.get("displayName") or sp.get("id"),
+            "type": sp.get("servicePrincipalType", "-"),
+            "privileged": "yes" if privileged else "no",
+            "owner": "yes" if has_owner else "NONE",
+            "credential": cred,
+            "score": score,
+            "risk": band,
+        })
+    out.sort(key=lambda x: -x["score"])
+    return out
+
+
+
 

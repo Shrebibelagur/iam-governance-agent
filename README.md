@@ -21,6 +21,7 @@ auditability, and separation of the read/detection path from the write/execution
 | Application permissions | read | App-only (app-role) access apps hold directly, high-risk flagged |
 | Conditional Access gaps | read | CA policies not enforcing, exclusions, missing MFA, legacy auth |
 | Ownerless objects | read | Groups and app registrations with no owner (accountability gap) |
+| NHI register | read | Non-human identities scored by privilege, ownership, credential hygiene |
 | Run all checks | read | Consolidated identity-risk summary across every detection |
 | Disable account | **write (gated)** | Proposal -> human approval -> PowerShell execution -> audit |
 
@@ -57,6 +58,7 @@ architecture is unchanged by that upgrade — only one Graph query differs.
 ## Security
 
 See [SECURITY.md](SECURITY.md) for how secrets and permissions are handled.
+
 
 
 

@@ -120,6 +120,15 @@ TOOLS = [
         "write": False,
     },
     {
+        "name": "find_nhi_register",
+        "description": "Build a non-human identity (NHI) register: every service principal "
+                       "scored by privilege, ownership, and credential hygiene, ranked worst "
+                       "first. Use to review non-human identities, service principals, or "
+                       "'which apps are riskiest'. Read-only.",
+        "input_schema": {"type": "object", "properties": {}},
+        "write": False,
+    },
+    {
         "name": "disable_account",
         "description": "Disable a user account by UPN. This is a WRITE action and requires "
                        "human approval before it executes.",
@@ -142,5 +151,6 @@ def api_tools() -> list[dict]:
 
 
 WRITE_TOOLS = {t["name"] for t in TOOLS if t["write"]}
+
 
 
